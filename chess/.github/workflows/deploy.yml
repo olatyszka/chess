@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - master  # Ustaw to na nazwę głównej gałęzi twojego repozytorium
+      - master
 
 jobs:
   deploy:
@@ -16,5 +16,5 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@4.1.4
         with:
-          branch: gh-pages  # Gałąź, na którą zostaną wdrożone pliki
-          folder: .  # Katalog z kodami źródłowymi do wdrożenia
+          branch: gh-pages
+          folder: .
