@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tour Skoczka</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .chessboard {
+            display: grid;
+            grid-gap: 1px;
+            border: 1px solid #000;
+            margin: 20px 0;
+            width: fit-content;
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .white { background-color: #f0d9b5; }
+        .black { background-color: #b58863; }
+        .visited { background-color: #8bc34a; }
+        .current { background-color: #ffeb3b; }
+        .possible-move { background-color: #90caf9; }
+        .move-number {
+            font-size: 14px;
+        }
+        form {
+            margin: 20px 0;
+        }
+        .debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        .stats {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 5px;
+        }
+        
+        /* Responsywność dla urządzeń mobilnych */
+        @media (max-width: 600px) {
+            .cell {
+                width: 40px;
+                height: 40px;
+            }
+            .chessboard {
+                margin: 20px auto;
+            }
+        }
+        
+        @media (max-width: 400px) {
+            .cell {
+                width: 30px;
+                height: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Tour Skoczka</h1>
+    
+    <div class="controls">
+        <form id="sizeForm">
+            <label for="board_size">Rozmiar szachownicy:</label>
+            <input type="number" id="board_size" name="board_size" min="5" max="12" value="8">
+            <button type="submit">Zmień rozmiar</button>
+        </form>
+        
+        <button id="resetButton">Resetuj planszę</button>
+    </div>
+    
+    <div class="stats">
+        <p>Wykonane ruchy: <span id="moveCounter">0</span> / <span id="totalCells">64</span></p>
+        <p>Postęp: <progress id="progressBar" value="0" max="64"></progress></p>
+    </div>
+    
+    <div id="chessboard" class="chessboard"></div>
+
+    <script>
+        // Stan gry
+        let visited = [[0, 0]];
+        let currentPos = [0, 0];
+        let boardSize = 8;
+        
+        // Funkcja sprawdzająca, czy ruch jest prawidłowym ruchem skoczka
+        function isValidKnightMove(fromPos, toPos) {
+            if (!fromPos) return true; // pierwszy ruch - można zacząć z dowolnego pola
+            
+            const [r1, c1] = fromPos;
+            const [r2, c2] = toPos;
+            
+            const dr = Math.abs(r1 - r2);
+            const dc = Math.abs(c1 - c2);
+            
+            // Skoczek porusza się o 1 pole w jednym kierunku i 2 pola w drugim
+            return (dr === 1 && dc === 2) || (dr === 2 && dc === 1);
+        }
+        
+        // Sprawdza, czy pole było już odwiedzone
+        function isVisited(pos) {
+            return visited.some(v => v[0] === pos[0] && v[1] === pos[1]);
+        }
+        
+        // Generuje listę możliwych ruchów skoczka z danej pozycji
+        function getPossibleMoves(pos) {
+            const [row, col] = pos;
+            const moves = [
+                [row-2, col-1], [row-2, col+1],
+                [row-1, col-2], [row-1, col+2],
+                [row+1, col-2], [row+1, col+2],
+                [row+2, col-1], [row+2, col+1]
+            ];
+            
+            // Filtruje ruchy, aby były w granicach planszy i nie były już odwiedzone
+            return moves.filter(move => {
+                const [r, c] = move;
+                return r >= 0 && r < boardSize && c >= 0 && c < boardSize && !isVisited(move);
+            });
+        }
+        
+        // Renderuje szachownicę
+        function renderBoard() {
+            const board = document.getElementById('chessboard');
+            board.innerHTML = '';
+            
+            // Dostosuj szerokość kolumn zależnie od rozmiaru ekranu
+            let cellSize = 50;
+            if (window.innerWidth <= 400) {
+                cellSize = 30;
+            } else if (window.innerWidth <= 600) {
+                cellSize = 40;
+            }
+            
+            board.style.gridTemplateColumns = `repeat(${boardSize}, ${cellSize}px)`;
+            
+            // Obliczanie możliwych ruchów z aktualnej pozycji
+            const possibleMoves = getPossibleMoves(currentPos);
+            
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.classList.add((row + col) % 2 === 0 ? 'white' : 'black');
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    // Sprawdź, czy pole zostało odwiedzone
+                    const moveIndex = visited.findIndex(v => v[0] === row && v[1] === col);
+                    if (moveIndex !== -1) {
+                        cell.classList.add('visited');
+                        cell.innerHTML = `<span class="move-number">${moveIndex}</span>`;
+                    }
+                    
+                    // Sprawdź, czy jest to aktualna pozycja
+                    if (currentPos[0] === row && currentPos[1] === col) {
+                        cell.classList.add('current');
+                    }
+                    
+                    // Sprawdź, czy jest to możliwy ruch
+                    if (possibleMoves.some(move => move[0] === row && move[1] === col)) {
+                        cell.classList.add('possible-move');
+                    }
+                    
+                    cell.addEventListener('click', () => handleCellClick(row, col));
+                    board.appendChild(cell);
+                }
+            }
+            
+            updateStats();
+        }
+        
+        // Aktualizuje licznik ruchów i pasek postępu
+        function updateStats() {
+            const moveCounter = document.getElementById('moveCounter');
+            const totalCells = document.getElementById('totalCells');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Liczba wykonanych ruchów to liczba odwiedzonych pól minus 1 (startowe pole)
+            const moves = visited.length - 1;
+            const total = boardSize * boardSize;
+            
+            moveCounter.textContent = moves;
+            totalCells.textContent = total;
+            progressBar.value = visited.length;
+            progressBar.max = total;
+        }
+        
+        // Obsługa kliknięcia w pole
+        function handleCellClick(row, col) {
+            const newPos = [row, col];
+            
+            // Sprawdź, czy pole zostało już odwiedzone
+            if (isVisited(newPos)) {
+                alert('To pole było już odwiedzone - nie można się tu ruszyć');
+                return;
+            }
+            
+            // Sprawdź, czy ruch jest zgodny z zasadami poruszania się skoczka
+            if (isValidKnightMove(currentPos, newPos)) {
+                visited.push(newPos);
+                currentPos = newPos;
+                renderBoard();
+                
+                // Sprawdź, czy wszystkie pola zostały odwiedzone
+                if (visited.length === boardSize * boardSize) {
+                    setTimeout(() => {
+                        alert('Gratulacje! Udało Ci się odwiedzić wszystkie pola szachownicy!');
+                    }, 100);
+                }
+                
+                // Sprawdź, czy są dostępne kolejne ruchy
+                if (getPossibleMoves(currentPos).length === 0 && visited.length < boardSize * boardSize) {
+                    setTimeout(() => {
+                        alert('Nie ma więcej możliwych ruchów! Gra zakończona.');
+                    }, 100);
+                }
+            } else {
+                alert(`Nieprawidłowy ruch skoczka z [${currentPos}] do [${newPos}]`);
+            }
+        }
+        
+        // Inicjalizacja aplikacji
+        function initApp() {
+            // Obsługa zmiany rozmiaru szachownicy
+            document.getElementById('sizeForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newSize = parseInt(document.getElementById('board_size').value);
+                if (newSize >= 5 && newSize <= 12) {
+                    boardSize = newSize;
+                    visited = [[0, 0]];
+                    currentPos = [0, 0];
+                    renderBoard();
+                }
+            });
+            
+            // Obsługa przycisku resetowania
+            document.getElementById('resetButton').addEventListener('click', () => {
+                visited = [[0, 0]];
+                currentPos = [0, 0];
+                renderBoard();
+            });
+            
+            // Pierwsze renderowanie szachownicy
+            renderBoard();
+        }
+        
+        // Uruchom aplikację po załadowaniu strony
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html> 
