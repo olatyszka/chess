@@ -1,0 +1,20 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master  # Ustaw to na nazwę głównej gałęzi twojego repozytorium
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@4.1.4
+        with:
+          branch: gh-pages  # Gałąź, na którą zostaną wdrożone pliki
+          folder: .  # Katalog z kodami źródłowymi do wdrożenia
